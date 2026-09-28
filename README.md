@@ -38,7 +38,7 @@ For emulator setup, local development and APK build commands, see [START.md](./d
 - Flutter stable
 - Android SDK
 - Java 17
-- Android 6.0 (API 23) or newer
+- Android 7.0 (API 24) or newer
 
 ## Development
 
