@@ -16,11 +16,11 @@ The project aims to make casual and physical access to diary contents impractica
 
 The project has not received a professional cryptographic security audit. Use it at your own risk.
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for the technical specification and [BUILD-PLAN.md](./BUILD-PLAN.md) for the implementation roadmap.
+See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the technical specification and [BUILD-PLAN.md](./docs/BUILD-PLAN.md) for the implementation roadmap.
 
-For a plain-language explanation of the security model, see [PROTECTION.md](./PROTECTION.md).
+For a plain-language explanation of the security model, see [PROTECTION.md](./docs/PROTECTION.md).
 
-For emulator setup, local development and APK build commands, see [START.md](./START.md).
+For emulator setup, local development and APK build commands, see [START.md](./docs/START.md).
 
 ## Requirements
 
