@@ -5,9 +5,10 @@ import 'package:nyxd/core/vault/vault_exceptions.dart';
 typedef UnlockVaultCallback = Future<void> Function(String password);
 
 class UnlockScreen extends StatefulWidget {
-  const UnlockScreen({super.key, required this.onUnlock});
+  const UnlockScreen({super.key, required this.onUnlock, this.onReset});
 
   final UnlockVaultCallback onUnlock;
+  final VoidCallback? onReset;
 
   @override
   State<UnlockScreen> createState() => _UnlockScreenState();
@@ -52,6 +53,36 @@ class _UnlockScreenState extends State<UnlockScreen> {
       if (mounted) {
         setState(() => _working = false);
       }
+    }
+  }
+
+  Future<void> _confirmReset() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Сбросить дневник?'),
+        content: const Text(
+          'Все сохранённые заметки будут безвозвратно удалены. '
+          'Вы сможете создать новый мастер-пароль и начать заново.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Сбросить всё'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed ?? false) {
+      widget.onReset?.call();
     }
   }
 
@@ -110,6 +141,20 @@ class _UnlockScreenState extends State<UnlockScreen> {
               if (_working) ...[
                 const SizedBox(height: 16),
                 const LinearProgressIndicator(),
+              ],
+              if (!_working && widget.onReset != null) ...[
+                const SizedBox(height: 16),
+                TextButton(
+                  key: const Key('reset-vault-button'),
+                  onPressed: _confirmReset,
+                  child: Text(
+                    'Забыли пароль? Сбросить данные',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               ],
               const Spacer(flex: 2),
             ],

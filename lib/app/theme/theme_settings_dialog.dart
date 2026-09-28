@@ -94,21 +94,23 @@ class _ThemeSettingsDialogState extends State<ThemeSettingsDialog> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Блокировать без активности через '
-              '${controller.inactivityTimeoutSeconds} сек.',
+              'Блокировать без активности через: '
+              '${controller.inactivityTimeoutSeconds >= 60 ? '${controller.inactivityTimeoutSeconds ~/ 60} мин. ${controller.inactivityTimeoutSeconds % 60 > 0 ? '${controller.inactivityTimeoutSeconds % 60} сек.' : ''}'.trim() : '${controller.inactivityTimeoutSeconds} сек.'}',
             ),
             Slider(
               value: controller.inactivityTimeoutSeconds.toDouble(),
               min: 30,
-              max: 300,
-              divisions: 27,
-              label: '${controller.inactivityTimeoutSeconds} сек.',
+              max: 900,
+              divisions: 29,
+              label: controller.inactivityTimeoutSeconds >= 60
+                  ? '${controller.inactivityTimeoutSeconds ~/ 60} мин.'
+                  : '${controller.inactivityTimeoutSeconds} сек.',
               onChanged: (value) {
                 controller.setInactivityTimeout(value.round());
                 setState(() {});
               },
             ),
-            const Text('Диапазон: от 30 секунд до 5 минут.'),
+            const Text('Диапазон: от 30 секунд до 15 минут.'),
           ],
         ),
       ),

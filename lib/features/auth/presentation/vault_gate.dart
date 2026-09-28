@@ -18,18 +18,20 @@ class VaultGate extends StatefulWidget {
     this.inactivityTimeout,
     this.externalActivityController,
     this.settings,
+    this.navigatorKey,
   });
 
   final VaultService? vault;
   final Duration? inactivityTimeout;
   final ExternalActivityController? externalActivityController;
   final ThemeController? settings;
+  final GlobalKey<NavigatorState>? navigatorKey;
 
   @override
-  State<VaultGate> createState() => _VaultGateState();
+  State<VaultGate> createState() => VaultGateState();
 }
 
-class _VaultGateState extends State<VaultGate> with WidgetsBindingObserver {
+class VaultGateState extends State<VaultGate> with WidgetsBindingObserver {
   VaultService? _vault;
   Object? _initializationError;
   Timer? _inactivityTimer;
@@ -48,8 +50,29 @@ class _VaultGateState extends State<VaultGate> with WidgetsBindingObserver {
     _externalActivity =
         widget.externalActivityController ?? ExternalActivityController();
     _vault = widget.vault;
+    final settings = widget.settings;
+    if (settings != null) {
+      _settings = settings..addListener(_onSettingsChanged);
+      _lastTimeoutSeconds = settings.inactivityTimeoutSeconds;
+    }
     if (_vault == null) {
       _initialize();
+    }
+  }
+
+  @override
+  void didUpdateWidget(VaultGate oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(widget.settings, _settings)) {
+      _settings?.removeListener(_onSettingsChanged);
+      final newSettings = widget.settings;
+      if (newSettings != null) {
+        _settings = newSettings..addListener(_onSettingsChanged);
+        _lastTimeoutSeconds = newSettings.inactivityTimeoutSeconds;
+      } else {
+        _settings = null;
+        _lastTimeoutSeconds = null;
+      }
     }
   }
 
@@ -114,6 +137,8 @@ class _VaultGateState extends State<VaultGate> with WidgetsBindingObserver {
     }
   }
 
+  void markActivity() => _markActivity();
+
   void _markActivity() {
     if (_vault?.status != VaultStatus.unlocked) {
       return;
@@ -141,7 +166,19 @@ class _VaultGateState extends State<VaultGate> with WidgetsBindingObserver {
   void _lockVault() {
     _inactivityTimer?.cancel();
     _inactivityTimer = null;
-    _vault!.lockVault();
+    _vault?.flushPendingSaves();
+    widget.navigatorKey?.currentState?.popUntil((route) => route.isFirst);
+    _vault?.lockVault();
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _resetVault() {
+    _inactivityTimer?.cancel();
+    _inactivityTimer = null;
+    widget.navigatorKey?.currentState?.popUntil((route) => route.isFirst);
+    _vault?.resetVault();
     if (mounted) {
       setState(() {});
     }
@@ -160,7 +197,10 @@ class _VaultGateState extends State<VaultGate> with WidgetsBindingObserver {
 
     return switch (vault.status) {
       VaultStatus.uninitialized => OnboardingScreen(onCreate: _createVault),
-      VaultStatus.locked => UnlockScreen(onUnlock: _unlockVault),
+      VaultStatus.locked => UnlockScreen(
+        onUnlock: _unlockVault,
+        onReset: _resetVault,
+      ),
       VaultStatus.unlocked => Listener(
         behavior: HitTestBehavior.translucent,
         onPointerDown: (_) => _markActivity(),

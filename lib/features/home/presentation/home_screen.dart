@@ -43,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _selectedTag;
   String _searchQuery = '';
   bool _searching = false;
-  int? _selectedEntryId;
+  final Set<int> _selectedEntryIds = <int>{};
 
   Future<T> _runExternal<T>(Future<T> Function() action) {
     final controller = widget.externalActivity;
@@ -58,22 +58,40 @@ class _HomeScreenState extends State<HomeScreen> {
   };
 
   List<Entry> get _entries {
-    if (_view == EntryView.trash) {
-      return widget.repository.listTrash();
+    if (widget.vault != null && widget.vault!.status != VaultStatus.unlocked) {
+      return const [];
     }
-    final entries = switch (_view) {
-      EntryView.all => widget.repository.listActive(),
-      EntryView.untagged => widget.repository.withoutTags(),
-      EntryView.tag => widget.repository.withTag(_selectedTag!),
-      EntryView.trash => widget.repository.listTrash(),
-    };
-    final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) {
-      return entries;
+    try {
+      if (_view == EntryView.trash) {
+        return widget.repository.listTrash();
+      }
+      final entries = switch (_view) {
+        EntryView.all => widget.repository.listActive(),
+        EntryView.untagged => widget.repository.withoutTags(),
+        EntryView.tag => widget.repository.withTag(_selectedTag!),
+        EntryView.trash => widget.repository.listTrash(),
+      };
+      final query = _searchQuery.trim().toLowerCase();
+      if (query.isEmpty) {
+        return entries;
+      }
+      return entries
+          .where((entry) => entry.content.toLowerCase().contains(query))
+          .toList(growable: false);
+    } catch (_) {
+      return const [];
     }
-    return entries
-        .where((entry) => entry.content.toLowerCase().contains(query))
-        .toList(growable: false);
+  }
+
+  List<String> get _tags {
+    if (widget.vault != null && widget.vault!.status != VaultStatus.unlocked) {
+      return const [];
+    }
+    try {
+      return widget.repository.listTags();
+    } catch (_) {
+      return const [];
+    }
   }
 
   void _selectView(EntryView view, {String? tag}) {
@@ -83,30 +101,70 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedTag = tag;
       _searchQuery = '';
       _searching = false;
-      _selectedEntryId = null;
+      _selectedEntryIds.clear();
     });
   }
 
   Future<void> _openEditor([Entry? entry]) async {
-    final changed = await Navigator.of(context).push<bool>(
+    await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => EditorScreen(
           repository: widget.repository,
           entry: entry,
+          vault: widget.vault,
           onActivity: widget.onActivity,
         ),
       ),
     );
-    if (changed ?? false) {
-      setState(() => _selectedEntryId = null);
-    } else if (mounted && _selectedEntryId != null) {
-      setState(() => _selectedEntryId = null);
+    if (mounted) {
+      setState(() => _selectedEntryIds.clear());
     }
   }
 
-  void _moveToTrash(Entry entry) {
-    widget.repository.moveToTrash(entry.id);
-    setState(() => _selectedEntryId = null);
+  void _toggleSelection(int id) {
+    setState(() {
+      if (_selectedEntryIds.contains(id)) {
+        _selectedEntryIds.remove(id);
+      } else {
+        _selectedEntryIds.add(id);
+      }
+    });
+  }
+
+  void _toggleSelectAll(List<Entry> entries) {
+    setState(() {
+      if (_selectedEntryIds.length == entries.length) {
+        _selectedEntryIds.clear();
+      } else {
+        _selectedEntryIds
+          ..clear()
+          ..addAll(entries.map((e) => e.id));
+      }
+    });
+  }
+
+  void _deleteSelected() {
+    for (final id in _selectedEntryIds.toList()) {
+      if (_view == EntryView.trash) {
+        widget.repository.deletePermanently(id);
+      } else {
+        widget.repository.moveToTrash(id);
+      }
+    }
+    setState(() => _selectedEntryIds.clear());
+  }
+
+  void _togglePinnedSelected(List<Entry> entries) {
+    final selectedEntries = entries
+        .where((e) => _selectedEntryIds.contains(e.id))
+        .toList();
+    final allPinned = selectedEntries.every((e) => e.isPinned);
+    for (final entry in selectedEntries) {
+      if (entry.isPinned == allPinned) {
+        widget.repository.togglePinned(entry.id);
+      }
+    }
+    setState(() => _selectedEntryIds.clear());
   }
 
   void _restore(Entry entry) {
@@ -117,11 +175,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void _deletePermanently(Entry entry) {
     widget.repository.deletePermanently(entry.id);
     setState(() {});
-  }
-
-  void _togglePinned(Entry entry) {
-    widget.repository.togglePinned(entry.id);
-    setState(() => _selectedEntryId = null);
   }
 
   Future<void> _exportBackup() async {
@@ -143,58 +196,40 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _restoreBackup() async {
     final vault = widget.vault;
     if (vault == null) return;
-    final picked = await _runExternal(
+    final result = await _runExternal(
       () => openFile(
         acceptedTypeGroups: const [
-          XTypeGroup(label: 'NyxD backup', extensions: ['nyxd']),
+          XTypeGroup(label: 'NyxD Backup', extensions: ['nyxd']),
         ],
       ),
     );
-    if (picked == null || !mounted) return;
-    final bytes = await picked.readAsBytes();
-    final password = await _askPassword();
-    if (password == null || !mounted) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Заменить текущий дневник?'),
-        content: const Text(
-          'Текущие заметки будут полностью заменены данными из резервной копии.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Восстановить'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
+    if (result == null) return;
+    final bytes = await result.readAsBytes();
+    final password = await _askPassword('Введите пароль резервной копии');
+    if (password == null) return;
     try {
       await vault.restoreBackup(bytes, password);
       widget.onRestored?.call();
-      _showMessage('Дневник восстановлен.');
-    } catch (_) {
       if (mounted) {
-        _showMessage('Не удалось восстановить копию. Проверьте файл и пароль.');
+        setState(() {});
+        _showMessage('Резервная копия восстановлена.');
       }
+    } on Object {
+      if (mounted) _showMessage('Не удалось восстановить копию.');
     }
   }
 
-  Future<String?> _askPassword() async {
+  Future<String?> _askPassword(String title) async {
     final controller = TextEditingController();
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Пароль резервной копии'),
+        title: Text(title),
         content: TextField(
           controller: controller,
           obscureText: true,
           autofocus: true,
+          decoration: const InputDecoration(labelText: 'Пароль'),
         ),
         actions: [
           TextButton(
@@ -322,21 +357,24 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final entries = _entries;
-    final selectedEntry = _selectedEntryId == null
-        ? null
-        : entries.where((entry) => entry.id == _selectedEntryId).firstOrNull;
+    final isSelectionMode = _selectedEntryIds.isNotEmpty;
+    final selectedEntries = entries
+        .where((entry) => _selectedEntryIds.contains(entry.id))
+        .toList();
+
     return Scaffold(
       appBar: AppBar(
-        leading: selectedEntry == null
-            ? null
-            : IconButton(
-                onPressed: () => setState(() => _selectedEntryId = null),
-                icon: const Icon(Icons.arrow_back),
-              ),
-        title: selectedEntry != null
-            ? const Text(
-                'Выбрано: 1',
-                style: TextStyle(fontWeight: FontWeight.w700),
+        leading: isSelectionMode
+            ? IconButton(
+                onPressed: () => setState(() => _selectedEntryIds.clear()),
+                icon: const Icon(Icons.close),
+                tooltip: 'Отменить выбор',
+              )
+            : null,
+        title: isSelectionMode
+            ? Text(
+                'Выбрано: ${_selectedEntryIds.length}',
+                style: const TextStyle(fontWeight: FontWeight.w700),
               )
             : _searching
             ? TextField(
@@ -352,29 +390,43 @@ class _HomeScreenState extends State<HomeScreen> {
               )
             : Text(_title, style: const TextStyle(fontWeight: FontWeight.w700)),
         actions: [
-          if (selectedEntry != null)
+          if (isSelectionMode) ...[
             IconButton(
-              onPressed: () => _exportMarkdown(selectedEntry),
-              tooltip: 'Экспортировать Markdown',
-              icon: const Icon(Icons.ios_share_outlined),
-            ),
-          if (selectedEntry != null)
-            IconButton(
-              onPressed: () => _togglePinned(selectedEntry),
-              tooltip: selectedEntry.isPinned ? 'Открепить' : 'Закрепить',
+              onPressed: () => _toggleSelectAll(entries),
+              tooltip: _selectedEntryIds.length == entries.length
+                  ? 'Снять выделение'
+                  : 'Выбрать все',
               icon: Icon(
-                selectedEntry.isPinned
-                    ? Icons.push_pin
-                    : Icons.push_pin_outlined,
+                _selectedEntryIds.length == entries.length
+                    ? Icons.deselect
+                    : Icons.select_all,
               ),
             ),
-          if (selectedEntry != null)
+            if (_view != EntryView.trash)
+              IconButton(
+                onPressed: () => _togglePinnedSelected(entries),
+                tooltip: 'Закрепить/открепить',
+                icon: const Icon(Icons.push_pin_outlined),
+              ),
+            if (selectedEntries.length == 1 && _view != EntryView.trash)
+              IconButton(
+                onPressed: () => _exportMarkdown(selectedEntries.first),
+                tooltip: 'Экспортировать Markdown',
+                icon: const Icon(Icons.ios_share_outlined),
+              ),
             IconButton(
-              onPressed: () => _moveToTrash(selectedEntry),
-              tooltip: 'В корзину',
-              icon: const Icon(Icons.delete_outline),
+              onPressed: _deleteSelected,
+              tooltip: _view == EntryView.trash
+                  ? 'Удалить навсегда'
+                  : 'В корзину',
+              icon: Icon(
+                _view == EntryView.trash
+                    ? Icons.delete_forever_outlined
+                    : Icons.delete_outline,
+              ),
             ),
-          if (selectedEntry == null && _view != EntryView.trash)
+          ],
+          if (!isSelectionMode && _view != EntryView.trash)
             IconButton(
               onPressed: () => setState(() {
                 _searching = !_searching;
@@ -385,7 +437,9 @@ class _HomeScreenState extends State<HomeScreen> {
               tooltip: _searching ? 'Закрыть поиск' : 'Поиск',
               icon: Icon(_searching ? Icons.close : Icons.search),
             ),
-          if (_view == EntryView.trash && entries.isNotEmpty)
+          if (!isSelectionMode &&
+              _view == EntryView.trash &&
+              entries.isNotEmpty)
             IconButton(
               onPressed: _confirmEmptyTrash,
               tooltip: 'Очистить корзину',
@@ -396,7 +450,7 @@ class _HomeScreenState extends State<HomeScreen> {
       drawer: _NavigationDrawer(
         selectedView: _view,
         selectedTag: _selectedTag,
-        tags: widget.repository.listTags(),
+        tags: _tags,
         onSelect: _selectView,
         onLock: widget.onLock,
         onData: _showDataActions,
@@ -409,33 +463,31 @@ class _HomeScreenState extends State<HomeScreen> {
               itemCount: entries.length,
               itemBuilder: (context, index) {
                 final entry = entries[index];
+                final isSelected = _selectedEntryIds.contains(entry.id);
                 return _EntryTile(
                   entry: entry,
                   inTrash: _view == EntryView.trash,
-                  selected: entry.id == _selectedEntryId,
-                  onTap: () => _openEditor(entry),
-                  onLongPress: () => setState(() {
-                    _selectedEntryId = _selectedEntryId == entry.id
-                        ? null
-                        : entry.id;
-                  }),
+                  selectionMode: isSelectionMode,
+                  selected: isSelected,
+                  onTap: () {
+                    if (isSelectionMode) {
+                      _toggleSelection(entry.id);
+                    } else {
+                      _openEditor(entry);
+                    }
+                  },
+                  onLongPress: () => _toggleSelection(entry.id),
                   onRestore: () => _restore(entry),
                   onDelete: () => _deletePermanently(entry),
                 );
               },
             ),
-      floatingActionButton: _view == EntryView.trash
+      floatingActionButton: _view == EntryView.trash || isSelectionMode
           ? null
           : FloatingActionButton(
-              onPressed: () => selectedEntry == null
-                  ? _openEditor()
-                  : _openEditor(selectedEntry),
-              tooltip: selectedEntry == null
-                  ? 'Новая заметка'
-                  : 'Редактировать',
-              child: Icon(
-                selectedEntry == null ? Icons.add : Icons.edit_outlined,
-              ),
+              onPressed: () => _openEditor(),
+              tooltip: 'Новая заметка',
+              child: const Icon(Icons.add),
             ),
     );
   }
@@ -445,6 +497,7 @@ class _EntryTile extends StatelessWidget {
   const _EntryTile({
     required this.entry,
     required this.inTrash,
+    required this.selectionMode,
     required this.selected,
     required this.onTap,
     required this.onLongPress,
@@ -454,6 +507,7 @@ class _EntryTile extends StatelessWidget {
 
   final Entry entry;
   final bool inTrash;
+  final bool selectionMode;
   final bool selected;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
@@ -463,9 +517,10 @@ class _EntryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final title = entry.title.isEmpty ? 'Без названия' : entry.title;
+    final theme = Theme.of(context);
     return ListTile(
       selected: selected,
-      selectedTileColor: Theme.of(context).colorScheme.secondaryContainer,
+      selectedTileColor: theme.colorScheme.primaryContainer.withAlpha(120),
       contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
       onTap: inTrash ? null : onTap,
       onLongPress: inTrash ? null : onLongPress,
@@ -475,7 +530,17 @@ class _EntryTile extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
       ),
-      leading: entry.isPinned ? const Icon(Icons.push_pin, size: 20) : null,
+      leading: selectionMode
+          ? Icon(
+              selected ? Icons.check_circle : Icons.radio_button_unchecked,
+              color: selected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline,
+              size: 22,
+            )
+          : entry.isPinned
+          ? const Icon(Icons.push_pin, size: 20)
+          : null,
       trailing: inTrash
           ? PopupMenuButton<String>(
               onSelected: (value) {
@@ -487,6 +552,8 @@ class _EntryTile extends StatelessWidget {
                 PopupMenuItem(value: 'delete', child: Text('Удалить навсегда')),
               ],
             )
+          : (selectionMode && entry.isPinned)
+          ? const Icon(Icons.push_pin, size: 18)
           : null,
     );
   }

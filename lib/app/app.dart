@@ -14,6 +14,8 @@ class NyxDApp extends StatefulWidget {
 
 class _NyxDAppState extends State<NyxDApp> {
   late final ThemeController _themeController;
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  final _vaultGateKey = GlobalKey<VaultGateState>();
 
   @override
   void initState() {
@@ -32,12 +34,28 @@ class _NyxDAppState extends State<NyxDApp> {
     return ListenableBuilder(
       listenable: _themeController,
       builder: (context, _) => MaterialApp(
+        navigatorKey: _navigatorKey,
         title: 'NyxD',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: _themeController.themeMode,
-        home: widget.home ?? VaultGate(settings: _themeController),
+        builder: (context, child) {
+          return Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) => _vaultGateKey.currentState?.markActivity(),
+            onPointerMove: (_) => _vaultGateKey.currentState?.markActivity(),
+            onPointerUp: (_) => _vaultGateKey.currentState?.markActivity(),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
+        home:
+            widget.home ??
+            VaultGate(
+              key: _vaultGateKey,
+              navigatorKey: _navigatorKey,
+              settings: _themeController,
+            ),
       ),
     );
   }

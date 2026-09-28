@@ -117,9 +117,32 @@ final class VaultService {
     }
   }
 
+  final Set<void Function()> _flushCallbacks = {};
+
+  void addFlushCallback(void Function() callback) =>
+      _flushCallbacks.add(callback);
+
+  void removeFlushCallback(void Function() callback) =>
+      _flushCallbacks.remove(callback);
+
+  void flushPendingSaves() {
+    for (final callback in _flushCallbacks.toList()) {
+      try {
+        callback();
+      } catch (_) {}
+    }
+  }
+
   void lockVault() {
+    flushPendingSaves();
     _session?.close();
     _session = null;
+  }
+
+  void resetVault() {
+    lockVault();
+    _deleteIfExists(paths.database);
+    _deleteIfExists(paths.metadata);
   }
 
   Uint8List createBackup() {

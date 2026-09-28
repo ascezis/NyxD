@@ -63,6 +63,218 @@ void main() {
     expect(repository.listActive().single.tags, {'сон'});
   });
 
+  testWidgets('existing tags are suggested and can be selected with one tap', (
+    tester,
+  ) async {
+    repository.create('Старая заметка #важное #работа');
+
+    await tester.pumpWidget(
+      MaterialApp(home: EditorScreen(repository: repository)),
+    );
+
+    await tester.enterText(find.byKey(const Key('entry-title')), 'Новая');
+    await tester.enterText(find.byKey(const Key('entry-editor')), 'Тело');
+    await tester.tap(find.text('Добавить метку…'));
+    await tester.pump();
+
+    expect(find.text('#важное'), findsOneWidget);
+    expect(find.text('#работа'), findsOneWidget);
+
+    await tester.tap(find.text('#важное'));
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+
+    final notes = repository.listActive();
+    final newNote = notes.firstWhere((n) => n.title == 'Новая');
+    expect(newNote.tags, contains('важное'));
+  });
+
+  testWidgets('toolbar formatting buttons toggle checkboxes and lists', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(home: EditorScreen(repository: repository)),
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('entry-title')),
+      'Список задач',
+    );
+    await tester.enterText(
+      find.byKey(const Key('entry-editor')),
+      'Купить хлеб',
+    );
+
+    // Test Checkbox toggle
+    await tester.tap(find.byKey(const Key('format-checkbox')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('entry-editor')))
+          .controller
+          ?.text,
+      '☐ Купить хлеб',
+    );
+
+    // Toggle to checked
+    await tester.tap(find.byKey(const Key('format-checkbox')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('entry-editor')))
+          .controller
+          ?.text,
+      '☑ Купить хлеб',
+    );
+
+    // Toggle off
+    await tester.tap(find.byKey(const Key('format-checkbox')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('entry-editor')))
+          .controller
+          ?.text,
+      'Купить хлеб',
+    );
+
+    // Test Numbered List toggle
+    await tester.tap(find.byKey(const Key('format-numbered-list')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('entry-editor')))
+          .controller
+          ?.text,
+      '1. Купить хлеб',
+    );
+
+    // Test Bullet List toggle
+    await tester.tap(find.byKey(const Key('format-bullet-list')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('entry-editor')))
+          .controller
+          ?.text,
+      '- Купить хлеб',
+    );
+
+    // Test Heading toggle
+    await tester.tap(find.byKey(const Key('format-heading')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('entry-editor')))
+          .controller
+          ?.text,
+      '# - Купить хлеб',
+    );
+  });
+
+  test(
+    'SmartListInputFormatter auto-continues and terminates checklists and lists',
+    () {
+      const formatter = SmartListInputFormatter();
+
+      // 1. Checklist continuation
+      var oldVal = const TextEditingValue(
+        text: '- [ ] Молоко',
+        selection: TextSelection.collapsed(offset: 12),
+      );
+      var newVal = const TextEditingValue(
+        text: '- [ ] Молоко\n',
+        selection: TextSelection.collapsed(offset: 13),
+      );
+      var result = formatter.formatEditUpdate(oldVal, newVal);
+      expect(result.text, '- [ ] Молоко\n- [ ] ');
+      expect(result.selection.baseOffset, 19);
+
+      // 2. Empty checklist item terminated
+      oldVal = const TextEditingValue(
+        text: '- [ ] Молоко\n- [ ] ',
+        selection: TextSelection.collapsed(offset: 19),
+      );
+      newVal = const TextEditingValue(
+        text: '- [ ] Молоко\n- [ ] \n',
+        selection: TextSelection.collapsed(offset: 20),
+      );
+      result = formatter.formatEditUpdate(oldVal, newVal);
+      expect(result.text, '- [ ] Молоко\n');
+      expect(result.selection.baseOffset, 13);
+
+      // 3. Numbered list continuation
+      oldVal = const TextEditingValue(
+        text: '1. Пункт',
+        selection: TextSelection.collapsed(offset: 8),
+      );
+      newVal = const TextEditingValue(
+        text: '1. Пункт\n',
+        selection: TextSelection.collapsed(offset: 9),
+      );
+      result = formatter.formatEditUpdate(oldVal, newVal);
+      expect(result.text, '1. Пункт\n2. ');
+      expect(result.selection.baseOffset, 12);
+
+      // 4. Empty numbered item terminated
+      oldVal = const TextEditingValue(
+        text: '1. Пункт\n2. ',
+        selection: TextSelection.collapsed(offset: 12),
+      );
+      newVal = const TextEditingValue(
+        text: '1. Пункт\n2. \n',
+        selection: TextSelection.collapsed(offset: 13),
+      );
+      result = formatter.formatEditUpdate(oldVal, newVal);
+      expect(result.text, '1. Пункт\n');
+      expect(result.selection.baseOffset, 9);
+
+      // 5. Bullet list continuation
+      oldVal = const TextEditingValue(
+        text: '- Пункт',
+        selection: TextSelection.collapsed(offset: 7),
+      );
+      newVal = const TextEditingValue(
+        text: '- Пункт\n',
+        selection: TextSelection.collapsed(offset: 8),
+      );
+      result = formatter.formatEditUpdate(oldVal, newVal);
+      expect(result.text, '- Пункт\n- ');
+      expect(result.selection.baseOffset, 10);
+    },
+  );
+
+  testWidgets('lifecycle inactive/paused immediately flushes save', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(home: EditorScreen(repository: repository)),
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('entry-title')),
+      'Срочная мысль',
+    );
+    await tester.enterText(
+      find.byKey(const Key('entry-editor')),
+      'Текст, который нельзя потерять при сворачивании',
+    );
+
+    // Simulate app going into background
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+
+    final notes = repository.listActive();
+    expect(notes, isNotEmpty);
+    expect(notes.single.title, 'Срочная мысль');
+    expect(
+      notes.single.body,
+      'Текст, который нельзя потерять при сворачивании',
+    );
+  });
+
   testWidgets('system back closes the editor and saves the note', (
     tester,
   ) async {

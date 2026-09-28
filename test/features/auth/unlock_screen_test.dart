@@ -42,4 +42,26 @@ void main() {
 
     expect(submittedPassword, 'correct password');
   });
+
+  testWidgets('confirms and executes reset callback', (tester) async {
+    var resetCalled = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: UnlockScreen(
+          onUnlock: (_) async {},
+          onReset: () => resetCalled = true,
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('reset-vault-button')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('reset-vault-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Сбросить дневник?'), findsOneWidget);
+    await tester.tap(find.text('Сбросить всё'));
+    await tester.pumpAndSettle();
+
+    expect(resetCalled, isTrue);
+  });
 }

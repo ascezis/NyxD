@@ -65,7 +65,7 @@ class ThemeController extends ChangeNotifier {
   }
 
   Future<void> setInactivityTimeout(int seconds) async {
-    inactivityTimeoutSeconds = seconds.clamp(30, 300);
+    inactivityTimeoutSeconds = seconds.clamp(30, 900);
     notifyListeners();
     final preferences = await SharedPreferences.getInstance();
     await preferences.setInt(_inactivityTimeoutKey, inactivityTimeoutSeconds);

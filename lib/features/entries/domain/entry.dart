@@ -24,7 +24,7 @@ final class Entry {
     final firstLine = lineBreak == -1
         ? content
         : content.substring(0, lineBreak);
-    return firstLine.trim().replaceFirst(RegExp(r'^#\s+'), '');
+    return firstLine.trim().replaceFirst(RegExp(r'^#+\s*'), '');
   }
 
   String get body {
