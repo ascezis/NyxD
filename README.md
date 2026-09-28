@@ -2,36 +2,50 @@
 
 NyxD is a private, offline-first diary for Android. It is designed for quick personal notes while keeping the database encrypted at rest.
 
+## Features
+
+- **Encrypted storage:** Argon2id key derivation and a SQLCipher database, with no network access required.
+- **Reliable saving:** pending edits are flushed to the encrypted database before the app locks or goes to the background.
+- **Editor:** visual checkboxes with strikethrough for completed tasks, numbered and bulleted lists that continue on Enter, headings and tag highlighting.
+- **Tags:** `#tags` are extracted from the note text; existing tags can be added with one tap.
+- **Multi-selection:** select several notes on the home screen to delete or pin them in one action.
+- **Auto-lock:** configurable inactivity timer (up to 15 minutes), reset by any touch, scroll or typing.
+- **Backups:** export and import of the whole encrypted database, plus exchange of individual notes as Markdown.
+
 ## Status
 
-> ⚠️ **Тестирование / Beta-статус**: В настоящее время ведутся активные дополнительные тесты приложения и пользовательского опыта в боевых условиях на реальных устройствах.
+NyxD is in beta (v0.1.0-beta.1) and is being tested on real devices. If you notice lost text or any other problem, please open an issue.
 
-NyxD находится на стадии активного бета-тестирования (v0.1.0). Проект включает:
-- **Шифрование данных**: стойкая изоляция ключей (Argon2id KDF + SQLCipher 256-bit AES-GCM).
-- **Надёжное сохранение без потерь**: автоматический предблокировочный сброс (pre-lock flush) при сворачивании и уходе в фон.
-- **Умный редактор**: визуальные чекбоксы (`☐` / `☑`) с зачёркиванием выполненных задач, нумерованные и маркированные списки с автопродолжением по Enter, заголовки и подсветка тегов.
-- **Система меток**: извлечение `#тегов` из текста и быстрый выбор существующих меток в один тап.
-- **Мультивыбор на главном экране**: удобное выделение нескольких заметок для пакетного удаления или закрепления.
-- **Настраиваемая безопасность**: гибкий таймер блокировки (до 15 минут) с глобальным отслеживанием касаний и безопасный сброс хранилища при утере пароля.
-- **Резервные копии**: зашифрованный экспорт/импорт всей базы и обмен отдельными заметками в Markdown.
+The cryptographic design has not received an independent professional audit, so read the threat model before storing critical data.
 
-Криптографический дизайн пока не проходил независимого профессионального аудита, поэтому ознакомьтесь с моделью угроз перед хранением критически важных данных.
+## Download
 
-## Скачать (Releases)
+APK builds are available in [Releases](https://github.com/ascezis/NyxD/releases).
 
-Готовые APK-файлы для установки на Android доступны в разделе **[Releases](https://github.com/ascezis/NyxD/releases)**.
+## Security design
+
+- **Key derivation:** password + unique salt → Argon2id → 256-bit key. Argon2id runs in a separate Dart Isolate; its cost is calibrated per device (memory 64–128 MiB, 2–3 iterations, parallelism 2–4), about one second per attempt.
+- **Encryption:** the whole database is encrypted page by page by SQLCipher. The derived key is passed as a raw key, bypassing SQLCipher's internal password KDF. A wrong password is detected by SQLCipher's HMAC check on the first read.
+- **No stored key:** the key is never written to disk. Only a small plain file with the salt and Argon2id parameters is stored; neither is secret.
+- **No Android Keystore, by design:** hardware binding would tie the database to one device and prevent moving notes to a new phone. Trade-off: anyone who obtains the database file can guess passwords offline, so security relies on password strength and the cost of Argon2id.
+- **Auto-lock:** when the app goes to the background, the key is zeroed and the SQLCipher connection is fully closed.
+- **System backups disabled:** `android:allowBackup="false"` plus an explicit `fullBackupContent` exclusion of the database directory.
+- **No password recovery:** a lost password means lost data. The unlock screen offers a reset that wipes the vault and starts a new one.
 
 ## Threat model
 
 The project aims to make casual and physical access to diary contents impractical after a lost or stolen device. It is not designed to resist state-level forensic tools or a live memory attack against a compromised, running device.
 
+Protection against a memory dump of a running process is best-effort (Dart VM): the key briefly exists as a string when it is passed to SQLCipher. Markdown export is plain text and is not encrypted.
+
 The project has not received a professional cryptographic security audit. Use it at your own risk.
 
-See [ARCHITECTURE.md](./docs/ARCHITECTURE.md) for the technical specification and [BUILD-PLAN.md](./docs/BUILD-PLAN.md) for the implementation roadmap.
+## Documentation
 
-For a plain-language explanation of the security model, see [PROTECTION.md](./docs/PROTECTION.md).
-
-For emulator setup, local development and APK build commands, see [START.md](./docs/START.md).
+- [ARCHITECTURE.md](./docs/ARCHITECTURE.md): technical specification
+- [BUILD-PLAN.md](./docs/BUILD-PLAN.md): implementation roadmap
+- [PROTECTION.md](./docs/PROTECTION.md): plain-language explanation of the security model
+- [START.md](./docs/START.md): emulator setup, local development and APK build commands
 
 ## Requirements
 
