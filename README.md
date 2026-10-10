@@ -75,8 +75,6 @@ lib/
 └── features/             Feature-oriented application code
 ```
 
-The `REFERENCES` directory contains the authoritative visual references for the UI. It is design input, not an application asset directory.
-
 ## Security reports
 
 Please follow the private reporting process in [SECURITY.md](./SECURITY.md).
