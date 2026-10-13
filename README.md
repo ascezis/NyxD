@@ -1,5 +1,9 @@
 # NyxD
 
+<p align="center">
+  <b>English</b> &nbsp;|&nbsp; <a href="README.ru.md">Русский</a>
+</p>
+
 NyxD is a private, offline-first diary for Android. It is designed for quick personal notes while keeping the database encrypted at rest.
 
 ## Features
@@ -32,26 +36,26 @@ APK builds are available in [Releases](https://github.com/ascezis/NyxD/releases)
 - **System backups disabled:** `android:allowBackup="false"` plus an explicit `fullBackupContent` exclusion of the database directory.
 - **No password recovery:** a lost password means lost data. The unlock screen offers a reset that wipes the vault and starts a new one.
 
-## Интерфейс (Screenshots)
+## Screenshots
 
 <p align="center">
-  <img src="docs/assets/screens/01_lock.png" width="31%" alt="Экран блокировки" />
-  <img src="docs/assets/screens/02_home.png" width="31%" alt="Главный экран" />
-  <img src="docs/assets/screens/03_editor.png" width="31%" alt="Редактор заметок" />
+  <img src="docs/assets/screens/01_lock.png" width="31%" alt="Lock screen" />
+  <img src="docs/assets/screens/02_home.png" width="31%" alt="Home screen" />
+  <img src="docs/assets/screens/03_editor.png" width="31%" alt="Note editor" />
 </p>
 <p align="center">
-  <em>1. Защита мастер-паролем &nbsp;&bull;&nbsp; 2. Список заметок с закреплением &nbsp;&bull;&nbsp; 3. Умный Markdown-редактор</em>
+  <em>1. Master password protection &nbsp;&bull;&nbsp; 2. Note list with pinning &nbsp;&bull;&nbsp; 3. Smart Markdown editor</em>
 </p>
 
 <br />
 
 <p align="center">
-  <img src="docs/assets/screens/04_drawer.png" width="31%" alt="Боковое меню" />
-  <img src="docs/assets/screens/05_settings.png" width="31%" alt="Настройки" />
-  <img src="docs/assets/screens/06_backups.png" width="31%" alt="Резервные копии" />
+  <img src="docs/assets/screens/04_drawer.png" width="31%" alt="Navigation drawer" />
+  <img src="docs/assets/screens/05_settings.png" width="31%" alt="Settings" />
+  <img src="docs/assets/screens/06_backups.png" width="31%" alt="Backups" />
 </p>
 <p align="center">
-  <em>4. Навигация и теги &nbsp;&bull;&nbsp; 5. Тема и автоблокировка &nbsp;&bull;&nbsp; 6. Экспорт и бэкапы</em>
+  <em>4. Navigation and tags &nbsp;&bull;&nbsp; 5. Theme and auto-lock &nbsp;&bull;&nbsp; 6. Export and backups</em>
 </p>
 
 ## Threat model
