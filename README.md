@@ -32,6 +32,28 @@ APK builds are available in [Releases](https://github.com/ascezis/NyxD/releases)
 - **System backups disabled:** `android:allowBackup="false"` plus an explicit `fullBackupContent` exclusion of the database directory.
 - **No password recovery:** a lost password means lost data. The unlock screen offers a reset that wipes the vault and starts a new one.
 
+## Интерфейс (Screenshots)
+
+<p align="center">
+  <img src="docs/assets/screenshots/01_lock_screen.png" width="31%" alt="Экран блокировки" />
+  <img src="docs/assets/screenshots/02_home_screen.png" width="31%" alt="Главный экран" />
+  <img src="docs/assets/screenshots/03_editor_screen.png" width="31%" alt="Редактор заметок" />
+</p>
+<p align="center">
+  <em>1. Защита мастер-паролем &nbsp;&bull;&nbsp; 2. Список заметок с закреплением &nbsp;&bull;&nbsp; 3. Умный Markdown-редактор</em>
+</p>
+
+<br />
+
+<p align="center">
+  <img src="docs/assets/screenshots/04_drawer_menu.png" width="31%" alt="Боковое меню" />
+  <img src="docs/assets/screenshots/05_settings.png" width="31%" alt="Настройки" />
+  <img src="docs/assets/screenshots/06_backups.png" width="31%" alt="Резервные копии" />
+</p>
+<p align="center">
+  <em>4. Навигация и теги &nbsp;&bull;&nbsp; 5. Тема и автоблокировка &nbsp;&bull;&nbsp; 6. Экспорт и бэкапы</em>
+</p>
+
 ## Threat model
 
 The project aims to make casual and physical access to diary contents impractical after a lost or stolen device. It is not designed to resist state-level forensic tools or a live memory attack against a compromised, running device.

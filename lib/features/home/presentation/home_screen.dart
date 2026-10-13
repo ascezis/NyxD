@@ -284,6 +284,53 @@ class _HomeScreenState extends State<HomeScreen> {
     _showMessage('Заметка импортирована.');
   }
 
+  void _seedDemoData() {
+    final note1 = widget.repository.create(
+      'Добро пожаловать в NyxD\n\n'
+      'Ваш личный оффлайн-дневник с нулевым разглашением. Все данные шифруются алгоритмом SQLCipher (AES-256) с деривацией ключа Argon2id.\n\n'
+      '# Особенности\n'
+      '☑ Локальное сквозное шифрование\n'
+      '☑ Форматирование списков и чекбоксов\n'
+      '☑ Автоматическая блокировка при выходе\n'
+      '☐ Настроить регулярный экспорт копий\n\n'
+      '#nyxd #безопасность',
+    );
+    widget.repository.togglePinned(note1.id);
+
+    widget.repository.create(
+      'Список задач и планов\n\n'
+      '☐ Протестировать ночной режим оформления\n'
+      '☑ Проверить создание резервной копии\n'
+      '☑ Настроить теги для каталогизации\n'
+      '☐ Записать ключевые мысли за неделю\n\n'
+      '#планы #продуктивность',
+    );
+
+    widget.repository.create(
+      'Любимые книги и цитаты\n\n'
+      '«Простота — необходимое условие прекрасного.»\n'
+      '— Лев Толстой\n\n'
+      '1. «Чистый код» — Роберт Мартин\n'
+      '2. «Человек в поисках смысла» — Виктор Франкл\n'
+      '3. «Антихрупкость» — Нассим Талеб\n\n'
+      '#книги #мысли',
+    );
+
+    widget.repository.create(
+      'Идеи для будущих обновлений\n\n'
+      'Мысли по поводу дальнейшего развития дневника:\n\n'
+      '- Поддержка биометрии для быстрого входа\n'
+      '- Быстрый экспорт выбранной заметки\n'
+      '- Счётчик слов и знаков в редакторе\n\n'
+      '#идеи #разработка',
+    );
+
+    if (mounted) {
+      setState(() {});
+      _showMessage('Демо-заметки успешно созданы.');
+    }
+  }
+
   void _showMessage(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -298,6 +345,15 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListTile(
+              leading: const Icon(Icons.auto_awesome_outlined),
+              title: const Text('Сгенерировать демо-заметки'),
+              subtitle: const Text('Примеры для скриншотов и обзора'),
+              onTap: () {
+                Navigator.pop(context);
+                _seedDemoData();
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.backup_outlined),
               title: const Text('Создать резервную копию'),
@@ -457,7 +513,11 @@ class _HomeScreenState extends State<HomeScreen> {
         settings: widget.settings,
       ),
       body: entries.isEmpty
-          ? _EmptyState(view: _view, searching: _searchQuery.isNotEmpty)
+          ? _EmptyState(
+              view: _view,
+              searching: _searchQuery.isNotEmpty,
+              onSeedDemo: _view == EntryView.all ? _seedDemoData : null,
+            )
           : ListView.builder(
               padding: const EdgeInsets.only(top: 8, bottom: 96),
               itemCount: entries.length,
@@ -560,20 +620,52 @@ class _EntryTile extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.view, required this.searching});
+  const _EmptyState({
+    required this.view,
+    required this.searching,
+    this.onSeedDemo,
+  });
 
   final EntryView view;
   final bool searching;
+  final VoidCallback? onSeedDemo;
 
   @override
   Widget build(BuildContext context) {
-    final text = searching
-        ? 'Ничего не найдено'
-        : view == EntryView.trash
-        ? 'Корзина пуста'
-        : 'Заметок пока нет';
+    if (searching) {
+      return Center(
+        child: Text(
+          'Ничего не найдено',
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+      );
+    }
+    if (view == EntryView.trash) {
+      return Center(
+        child: Text(
+          'Корзина пуста',
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+      );
+    }
     return Center(
-      child: Text(text, style: Theme.of(context).textTheme.bodyLarge),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Заметок пока нет',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          if (onSeedDemo != null) ...[
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: onSeedDemo,
+              icon: const Icon(Icons.auto_awesome_outlined, size: 18),
+              label: const Text('Заполнить примерами'),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
