@@ -35,9 +35,9 @@ APK builds are available in [Releases](https://github.com/ascezis/NyxD/releases)
 ## Интерфейс (Screenshots)
 
 <p align="center">
-  <img src="docs/assets/screenshots/01_lock_screen.png" width="31%" alt="Экран блокировки" />
-  <img src="docs/assets/screenshots/02_home_screen.png" width="31%" alt="Главный экран" />
-  <img src="docs/assets/screenshots/03_editor_screen.png" width="31%" alt="Редактор заметок" />
+  <img src="docs/assets/screens/01_lock.png" width="31%" alt="Экран блокировки" />
+  <img src="docs/assets/screens/02_home.png" width="31%" alt="Главный экран" />
+  <img src="docs/assets/screens/03_editor.png" width="31%" alt="Редактор заметок" />
 </p>
 <p align="center">
   <em>1. Защита мастер-паролем &nbsp;&bull;&nbsp; 2. Список заметок с закреплением &nbsp;&bull;&nbsp; 3. Умный Markdown-редактор</em>
@@ -46,9 +46,9 @@ APK builds are available in [Releases](https://github.com/ascezis/NyxD/releases)
 <br />
 
 <p align="center">
-  <img src="docs/assets/screenshots/04_drawer_menu.png" width="31%" alt="Боковое меню" />
-  <img src="docs/assets/screenshots/05_settings.png" width="31%" alt="Настройки" />
-  <img src="docs/assets/screenshots/06_backups.png" width="31%" alt="Резервные копии" />
+  <img src="docs/assets/screens/04_drawer.png" width="31%" alt="Боковое меню" />
+  <img src="docs/assets/screens/05_settings.png" width="31%" alt="Настройки" />
+  <img src="docs/assets/screens/06_backups.png" width="31%" alt="Резервные копии" />
 </p>
 <p align="center">
   <em>4. Навигация и теги &nbsp;&bull;&nbsp; 5. Тема и автоблокировка &nbsp;&bull;&nbsp; 6. Экспорт и бэкапы</em>
