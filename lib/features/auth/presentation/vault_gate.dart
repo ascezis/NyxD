@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:nyxd/app/theme/theme_controller.dart';
 import 'package:nyxd/core/security/external_activity_scope.dart';
@@ -131,11 +132,39 @@ class VaultGateState extends State<VaultGate> with WidgetsBindingObserver {
       }
       return;
     }
+    if (_isDesktop) {
+      // Desktop: how strictly to lock on focus loss / minimize is a user
+      // setting. By default only the inactivity timer locks the vault.
+      if (state == AppLifecycleState.resumed) {
+        _markActivity();
+        return;
+      }
+      final mode =
+          _settings?.backgroundLockMode ?? BackgroundLockMode.timerOnly;
+      final shouldLock = switch (mode) {
+        BackgroundLockMode.timerOnly => false,
+        BackgroundLockMode.onMinimize =>
+          state == AppLifecycleState.hidden ||
+              state == AppLifecycleState.paused,
+        BackgroundLockMode.onFocusLoss => true,
+      };
+      if (shouldLock && _vault?.status == VaultStatus.unlocked) {
+        _lockVault();
+      }
+      return;
+    }
     if (state != AppLifecycleState.resumed &&
         _vault?.status == VaultStatus.unlocked) {
       _lockVault();
     }
   }
+
+  bool get _isDesktop => switch (defaultTargetPlatform) {
+    TargetPlatform.windows ||
+    TargetPlatform.linux ||
+    TargetPlatform.macOS => true,
+    _ => false,
+  };
 
   void markActivity() => _markActivity();
 

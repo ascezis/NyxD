@@ -8,7 +8,7 @@ class BrandMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Image.asset(
-      'LOGO_BRAND/brand-mark-metallic-1024.png',
+      'Logo_brand/brand-mark-metallic-1024.png',
       width: size,
       height: size,
       filterQuality: FilterQuality.high,
