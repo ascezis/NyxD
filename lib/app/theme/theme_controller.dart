@@ -5,16 +5,31 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 enum ThemePreference { light, dark, scheduled }
 
+/// When the vault is locked as the desktop window leaves the foreground.
+/// On mobile the vault always locks when the app goes to the background.
+enum BackgroundLockMode {
+  /// Only the inactivity timer locks the vault.
+  timerOnly,
+
+  /// Lock as soon as the window is minimized or hidden.
+  onMinimize,
+
+  /// Lock as soon as the window loses focus.
+  onFocusLoss,
+}
+
 class ThemeController extends ChangeNotifier {
   static const _modeKey = 'theme.mode';
   static const _darkFromKey = 'theme.darkFromMinutes';
   static const _lightFromKey = 'theme.lightFromMinutes';
   static const _inactivityTimeoutKey = 'security.inactivityTimeoutSeconds';
+  static const _backgroundLockKey = 'security.backgroundLockMode';
 
   ThemePreference preference = ThemePreference.scheduled;
   int darkFromMinutes = 20 * 60;
   int lightFromMinutes = 7 * 60;
   int inactivityTimeoutSeconds = 40;
+  BackgroundLockMode backgroundLockMode = BackgroundLockMode.timerOnly;
   Timer? _timer;
 
   ThemeMode get themeMode {
@@ -37,6 +52,11 @@ class ThemeController extends ChangeNotifier {
     lightFromMinutes = preferences.getInt(_lightFromKey) ?? lightFromMinutes;
     inactivityTimeoutSeconds =
         preferences.getInt(_inactivityTimeoutKey) ?? inactivityTimeoutSeconds;
+    final storedLock = preferences.getString(_backgroundLockKey);
+    backgroundLockMode = BackgroundLockMode.values.firstWhere(
+      (value) => value.name == storedLock,
+      orElse: () => BackgroundLockMode.timerOnly,
+    );
     _scheduleRefresh();
     notifyListeners();
   }
@@ -69,6 +89,13 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
     final preferences = await SharedPreferences.getInstance();
     await preferences.setInt(_inactivityTimeoutKey, inactivityTimeoutSeconds);
+  }
+
+  Future<void> setBackgroundLockMode(BackgroundLockMode mode) async {
+    backgroundLockMode = mode;
+    notifyListeners();
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_backgroundLockKey, mode.name);
   }
 
   bool isDarkAt(DateTime now) {

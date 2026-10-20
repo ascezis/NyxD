@@ -46,6 +46,7 @@ class _NyxDAppState extends State<NyxDApp> {
             onPointerDown: (_) => _vaultGateKey.currentState?.markActivity(),
             onPointerMove: (_) => _vaultGateKey.currentState?.markActivity(),
             onPointerUp: (_) => _vaultGateKey.currentState?.markActivity(),
+            onPointerSignal: (_) => _vaultGateKey.currentState?.markActivity(),
             child: child ?? const SizedBox.shrink(),
           );
         },

@@ -90,74 +90,82 @@ class _UnlockScreenState extends State<UnlockScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Spacer(),
-              const Center(child: BrandMark(size: 132)),
-              const SizedBox(height: 28),
-              Text(
-                'Откройте дневник',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 32),
-              TextField(
-                key: const Key('unlock-password'),
-                controller: _passwordController,
-                autofocus: true,
-                enabled: !_working,
-                obscureText: _obscurePassword,
-                autofillHints: const [AutofillHints.password],
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _submit(),
-                decoration: InputDecoration(
-                  labelText: 'Мастер-пароль',
-                  suffixIcon: IconButton(
-                    onPressed: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility
-                          : Icons.visibility_off,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Spacer(),
+                  const Center(child: BrandMark(size: 132)),
+                  const SizedBox(height: 28),
+                  Text(
+                    'Откройте дневник',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 32),
+                  TextField(
+                    key: const Key('unlock-password'),
+                    controller: _passwordController,
+                    autofocus: true,
+                    enabled: !_working,
+                    obscureText: _obscurePassword,
+                    autofillHints: const [AutofillHints.password],
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _submit(),
+                    decoration: InputDecoration(
+                      labelText: 'Мастер-пароль',
+                      suffixIcon: IconButton(
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              if (_error case final error?) ...[
-                const SizedBox(height: 12),
-                Text(
-                  error,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _working ? null : _submit,
-                child: Text(_working ? 'Открываем…' : 'Открыть'),
-              ),
-              if (_working) ...[
-                const SizedBox(height: 16),
-                const LinearProgressIndicator(),
-              ],
-              if (!_working && widget.onReset != null) ...[
-                const SizedBox(height: 16),
-                TextButton(
-                  key: const Key('reset-vault-button'),
-                  onPressed: _confirmReset,
-                  child: Text(
-                    'Забыли пароль? Сбросить данные',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                      fontWeight: FontWeight.w600,
+                  if (_error case final error?) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      error,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
+                  ],
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: _working ? null : _submit,
+                    child: Text(_working ? 'Открываем…' : 'Открыть'),
                   ),
-                ),
-              ],
-              const Spacer(flex: 2),
-            ],
+                  if (_working) ...[
+                    const SizedBox(height: 16),
+                    const LinearProgressIndicator(),
+                  ],
+                  if (!_working && widget.onReset != null) ...[
+                    const SizedBox(height: 16),
+                    TextButton(
+                      key: const Key('reset-vault-button'),
+                      onPressed: _confirmReset,
+                      child: Text(
+                        'Забыли пароль? Сбросить данные',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const Spacer(flex: 2),
+                ],
+              ),
+            ),
           ),
         ),
       ),

@@ -13,6 +13,9 @@ class EditorScreen extends StatefulWidget {
     this.entry,
     this.vault,
     this.onActivity,
+    this.embedded = false,
+    this.onClose,
+    this.onSaved,
   });
 
   final EntryRepository repository;
@@ -20,12 +23,22 @@ class EditorScreen extends StatefulWidget {
   final VaultService? vault;
   final VoidCallback? onActivity;
 
+  /// When true the editor lives inside a split view (desktop) instead of its
+  /// own route: there is no back button and closing calls [onClose].
+  final bool embedded;
+  final VoidCallback? onClose;
+  final ValueChanged<Entry>? onSaved;
+
   @override
   State<EditorScreen> createState() => _EditorScreenState();
 }
 
 class _EditorScreenState extends State<EditorScreen>
     with WidgetsBindingObserver {
+  /// Right inset that keeps the formatting bar clear of the floating
+  /// new-note button when the editor is embedded in the desktop split view.
+  static const double _cornerButtonInset = 88;
+
   late final TextEditingController _titleController;
   late final TextEditingController _bodyController;
   final _tagController = TextEditingController();
@@ -140,6 +153,8 @@ class _EditorScreenState extends State<EditorScreen>
           tags: allTags,
         );
       }
+      final saved = _entry;
+      if (saved != null) widget.onSaved?.call(saved);
     } catch (_) {
       // Ignored if DB was closed
     }
@@ -190,7 +205,15 @@ class _EditorScreenState extends State<EditorScreen>
     }
     _closing = true;
     _saveNow();
-    Navigator.pop(context, _changed);
+    _finish();
+  }
+
+  void _finish() {
+    if (widget.embedded) {
+      widget.onClose?.call();
+    } else {
+      Navigator.pop(context, _changed);
+    }
   }
 
   void _delete() {
@@ -200,7 +223,7 @@ class _EditorScreenState extends State<EditorScreen>
       _changed = true;
     }
     _closing = true;
-    Navigator.pop(context, _changed);
+    _finish();
   }
 
   // --- Formatting Helpers ---
@@ -323,10 +346,13 @@ class _EditorScreenState extends State<EditorScreen>
       },
       child: Scaffold(
         appBar: AppBar(
-          leading: IconButton(
-            onPressed: _close,
-            icon: const Icon(Icons.arrow_back),
-          ),
+          automaticallyImplyLeading: !widget.embedded,
+          leading: widget.embedded
+              ? null
+              : IconButton(
+                  onPressed: _close,
+                  icon: const Icon(Icons.arrow_back),
+                ),
           actions: [
             if (_entry != null)
               PopupMenuButton<String>(
@@ -343,159 +369,180 @@ class _EditorScreenState extends State<EditorScreen>
         ),
         body: SafeArea(
           top: false,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-                child: TextField(
-                  key: const Key('entry-title'),
-                  controller: _titleController,
-                  focusNode: _titleFocusNode,
-                  autofocus: _entry == null,
-                  textInputAction: TextInputAction.next,
-                  onSubmitted: (_) => _bodyFocusNode.requestFocus(),
-                  onChanged: (_) => _scheduleSave(),
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                  decoration: const InputDecoration(
-                    filled: false,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    disabledBorder: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                    hintText: 'Заголовок',
-                  ),
-                ),
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: widget.embedded ? 820 : double.infinity,
               ),
-              Expanded(
-                child: TextField(
-                  key: const Key('entry-editor'),
-                  controller: _bodyController,
-                  focusNode: _bodyFocusNode,
-                  expands: true,
-                  maxLines: null,
-                  minLines: null,
-                  textAlignVertical: TextAlignVertical.top,
-                  keyboardType: TextInputType.multiline,
-                  inputFormatters: const [SmartListInputFormatter()],
-                  onChanged: (_) => _scheduleSave(),
-                  decoration: const InputDecoration(
-                    filled: false,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    disabledBorder: InputBorder.none,
-                    contentPadding: EdgeInsets.fromLTRB(24, 12, 24, 16),
-                    hintText: 'Начните писать…',
-                  ),
-                ),
-              ),
-              // Formatting Toolbar
-              Container(
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.outlineVariant.withAlpha(80),
-                    ),
-                  ),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      key: const Key('format-checkbox'),
-                      icon: const Icon(Icons.check_box_outlined, size: 22),
-                      tooltip: 'Чекбокс',
-                      onPressed: _toggleCheckbox,
-                    ),
-                    IconButton(
-                      key: const Key('format-numbered-list'),
-                      icon: const Icon(Icons.format_list_numbered, size: 22),
-                      tooltip: 'Нумерованный список',
-                      onPressed: _toggleNumberedList,
-                    ),
-                    IconButton(
-                      key: const Key('format-bullet-list'),
-                      icon: const Icon(Icons.format_list_bulleted, size: 22),
-                      tooltip: 'Маркированный список',
-                      onPressed: _toggleBulletList,
-                    ),
-                    IconButton(
-                      key: const Key('format-heading'),
-                      icon: const Icon(Icons.title, size: 22),
-                      tooltip: 'Заголовок',
-                      onPressed: _toggleHeading,
-                    ),
-                    const Spacer(),
-                    if (!_addingTag)
-                      TextButton.icon(
-                        key: const Key('add-tag-button'),
-                        onPressed: _showTagInput,
-                        icon: const Icon(Icons.tag, size: 18),
-                        label: const Text('Добавить метку…'),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                    child: TextField(
+                      key: const Key('entry-title'),
+                      controller: _titleController,
+                      focusNode: _titleFocusNode,
+                      autofocus: _entry == null,
+                      textInputAction: TextInputAction.next,
+                      onSubmitted: (_) => _bodyFocusNode.requestFocus(),
+                      onChanged: (_) => _scheduleSave(),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                      decoration: const InputDecoration(
+                        filled: false,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        hintText: 'Заголовок',
                       ),
-                  ],
-                ),
-              ),
-              // Tags Section
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      for (final tag in _tags)
-                        InputChip(
-                          label: Text('#$tag'),
-                          onDeleted: () => _removeTag(tag),
+                    ),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      key: const Key('entry-editor'),
+                      controller: _bodyController,
+                      focusNode: _bodyFocusNode,
+                      expands: true,
+                      maxLines: null,
+                      minLines: null,
+                      textAlignVertical: TextAlignVertical.top,
+                      keyboardType: TextInputType.multiline,
+                      inputFormatters: const [SmartListInputFormatter()],
+                      onChanged: (_) => _scheduleSave(),
+                      decoration: const InputDecoration(
+                        filled: false,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.fromLTRB(24, 12, 24, 16),
+                        hintText: 'Начните писать…',
+                      ),
+                    ),
+                  ),
+                  // Formatting Toolbar
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outlineVariant.withAlpha(80),
                         ),
-                      if (_addingTag) ...[
-                        if (allAvailableTags.isNotEmpty) ...[
-                          for (final suggestedTag in allAvailableTags)
-                            ActionChip(
-                              avatar: const Icon(Icons.add, size: 16),
-                              label: Text('#$suggestedTag'),
-                              onPressed: () => _selectExistingTag(suggestedTag),
+                      ),
+                    ),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      4,
+                      widget.embedded ? _cornerButtonInset : 16,
+                      4,
+                    ),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          key: const Key('format-checkbox'),
+                          icon: const Icon(Icons.check_box_outlined, size: 22),
+                          tooltip: 'Чекбокс',
+                          onPressed: _toggleCheckbox,
+                        ),
+                        IconButton(
+                          key: const Key('format-numbered-list'),
+                          icon: const Icon(
+                            Icons.format_list_numbered,
+                            size: 22,
+                          ),
+                          tooltip: 'Нумерованный список',
+                          onPressed: _toggleNumberedList,
+                        ),
+                        IconButton(
+                          key: const Key('format-bullet-list'),
+                          icon: const Icon(
+                            Icons.format_list_bulleted,
+                            size: 22,
+                          ),
+                          tooltip: 'Маркированный список',
+                          onPressed: _toggleBulletList,
+                        ),
+                        IconButton(
+                          key: const Key('format-heading'),
+                          icon: const Icon(Icons.title, size: 22),
+                          tooltip: 'Заголовок',
+                          onPressed: _toggleHeading,
+                        ),
+                        const Spacer(),
+                        if (!_addingTag)
+                          TextButton.icon(
+                            key: const Key('add-tag-button'),
+                            onPressed: _showTagInput,
+                            icon: const Icon(Icons.tag, size: 18),
+                            label: const Text('Добавить метку…'),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Tags Section
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      0,
+                      widget.embedded ? _cornerButtonInset : 16,
+                      8,
+                    ),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          for (final tag in _tags)
+                            InputChip(
+                              label: Text('#$tag'),
+                              onDeleted: () => _removeTag(tag),
                             ),
-                        ],
-                        SizedBox(
-                          width: 180,
-                          child: TextField(
-                            key: const Key('tag-input'),
-                            controller: _tagController,
-                            focusNode: _tagFocusNode,
-                            autofocus: true,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _addTag(),
-                            onTapOutside: (_) => _addTag(),
-                            decoration: InputDecoration(
-                              hintText: 'Новая метка',
-                              prefixText: '#',
-                              isDense: true,
-                              suffixIcon: IconButton(
-                                onPressed: _addTag,
-                                tooltip: 'Добавить',
-                                icon: const Icon(Icons.check),
+                          if (_addingTag) ...[
+                            if (allAvailableTags.isNotEmpty) ...[
+                              for (final suggestedTag in allAvailableTags)
+                                ActionChip(
+                                  avatar: const Icon(Icons.add, size: 16),
+                                  label: Text('#$suggestedTag'),
+                                  onPressed: () =>
+                                      _selectExistingTag(suggestedTag),
+                                ),
+                            ],
+                            SizedBox(
+                              width: 180,
+                              child: TextField(
+                                key: const Key('tag-input'),
+                                controller: _tagController,
+                                focusNode: _tagFocusNode,
+                                autofocus: true,
+                                textInputAction: TextInputAction.done,
+                                onSubmitted: (_) => _addTag(),
+                                onTapOutside: (_) => _addTag(),
+                                decoration: InputDecoration(
+                                  hintText: 'Новая метка',
+                                  prefixText: '#',
+                                  isDense: true,
+                                  suffixIcon: IconButton(
+                                    onPressed: _addTag,
+                                    tooltip: 'Добавить',
+                                    icon: const Icon(Icons.check),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                      ],
-                    ],
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

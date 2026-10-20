@@ -10,6 +10,14 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  test('background lock defaults to timer only', () async {
+    final controller = ThemeController();
+    addTearDown(controller.dispose);
+    await controller.load();
+
+    expect(controller.backgroundLockMode, BackgroundLockMode.timerOnly);
+  });
+
   test('scheduled theme works across midnight', () {
     final controller = ThemeController();
     addTearDown(controller.dispose);
@@ -24,6 +32,7 @@ void main() {
     await first.setPreference(ThemePreference.dark);
     await first.setSchedule(darkFrom: 18 * 60 + 30, lightFrom: 8 * 60);
     await first.setInactivityTimeout(120);
+    await first.setBackgroundLockMode(BackgroundLockMode.onFocusLoss);
     first.dispose();
 
     final restored = ThemeController();
@@ -35,5 +44,6 @@ void main() {
     expect(restored.darkFromMinutes, 18 * 60 + 30);
     expect(restored.lightFromMinutes, 8 * 60);
     expect(restored.inactivityTimeoutSeconds, 120);
+    expect(restored.backgroundLockMode, BackgroundLockMode.onFocusLoss);
   });
 }

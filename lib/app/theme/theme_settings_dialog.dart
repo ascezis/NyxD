@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:nyxd/app/theme/theme_controller.dart';
 
@@ -32,6 +33,30 @@ class _ThemeSettingsDialogState extends State<ThemeSettingsDialog> {
     );
     if (mounted) setState(() {});
   }
+
+  bool get _isDesktop => switch (defaultTargetPlatform) {
+    TargetPlatform.windows ||
+    TargetPlatform.linux ||
+    TargetPlatform.macOS => true,
+    _ => false,
+  };
+
+  String _lockModeTitle(BackgroundLockMode mode) => switch (mode) {
+    BackgroundLockMode.timerOnly => 'Только по таймеру',
+    BackgroundLockMode.onMinimize => 'При сворачивании окна',
+    BackgroundLockMode.onFocusLoss => 'При потере фокуса (строго)',
+  };
+
+  String _lockModeHint(BackgroundLockMode mode) => switch (mode) {
+    BackgroundLockMode.timerOnly =>
+      'Окно можно сворачивать и переключаться между программами: '
+          'дневник закроется по таймеру бездействия.',
+    BackgroundLockMode.onMinimize =>
+      'Дневник блокируется, как только окно свёрнуто.',
+    BackgroundLockMode.onFocusLoss =>
+      'Дневник блокируется сразу, как только вы переключились '
+          'в другое окно.',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +136,32 @@ class _ThemeSettingsDialogState extends State<ThemeSettingsDialog> {
               },
             ),
             const Text('Диапазон: от 30 секунд до 15 минут.'),
+            if (_isDesktop) ...[
+              const SizedBox(height: 20),
+              const Text('Блокировка при уходе из окна:'),
+              const SizedBox(height: 8),
+              DropdownButton<BackgroundLockMode>(
+                isExpanded: true,
+                value: controller.backgroundLockMode,
+                items: [
+                  for (final mode in BackgroundLockMode.values)
+                    DropdownMenuItem(
+                      value: mode,
+                      child: Text(_lockModeTitle(mode)),
+                    ),
+                ],
+                onChanged: (mode) {
+                  if (mode == null) return;
+                  controller.setBackgroundLockMode(mode);
+                  setState(() {});
+                },
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _lockModeHint(controller.backgroundLockMode),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
           ],
         ),
       ),
